@@ -1,0 +1,28 @@
+{% extends "base_generic.html" %}
+
+{% block title %}
+<title>Howard Cho's Local Library</title>
+{% endblock %}
+
+{% block content %}
+  <h1>Local Library Home</h1>
+  <p>
+    Welcome to LocalLibrary, a website developed by
+    <em>Howard Cho</em> following the tutorial from <em>Mozilla Developer Network</em>!
+  </p>
+  <h2>Dynamic content</h2>
+  <p>The library has the following record counts:</p>
+  <ul>
+    <li><strong>Books:</strong> {{ num_books }}</li>
+    <li><strong>Copies:</strong> {{ num_instances }}</li>
+    <li><strong>Copies available:</strong> {{ num_instances_available }}</li>
+    <li><strong>Authors:</strong> {{ num_authors }}</li>
+    <li><strong>Genres:</strong> {{ num_genres }}</li>
+  </ul>
+  {% load static %}
+  <h2>UML Diagram</h2>  
+  <img
+    src="{% static 'images/local_library_model_uml.png' %}"
+    alt="UML diagram"
+    style="max-width:555px; width:100%; height:auto;" />
+{% endblock %}

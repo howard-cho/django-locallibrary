@@ -1,7 +1,17 @@
 from django.shortcuts import render
+from django.views import generic
 
 # Create your views here.
 from .models import Book, BookInstance, Author, Genre
+
+class BookListView(generic.ListView):
+    model = Book
+    context_object_name = 'book_list' # Your own name for the list as a template variable
+    # queryset = Book.objects.filter(title__icontains='war')[:5] # Get 5 books containing the title 'war'
+    template_name = 'books/my_arbitrary_template_name_list.html' # Specify your own template name/location
+
+class BookDetailView(generic.DetailView):
+    model = Book
 
 def index(request):
     """View function for the home page of the site."""

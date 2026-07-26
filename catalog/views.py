@@ -54,12 +54,12 @@ def renew_book_librarian(request, pk):
     # If this is a POST request then process the Form data
     if request.method == 'POST':
         # Create a form instance and populate it with data from the request (binding):
-        form = RenewBookModelForm(request.POST)
+        form = RenewBookForm(request.POST)
 
         # Check if hte form is valid:
         if form.is_valid():
-            # Process the data in form.cleaned_data as required (here we just write it oteh model due_back field)
-            book_instance.due_back = form.cleaned_data['due_back']
+            # Process the data in form.cleaned_data as required (here we just write it to the model due_back field)
+            book_instance.due_back = form.cleaned_data['renewal_date']
             book_instance.save()
 
             # Redirect to a new URL:
@@ -67,8 +67,8 @@ def renew_book_librarian(request, pk):
 
     # If this is a GET (or any other method) create the default form.
     else:
-        proposed_due_back = datetime.date.today() + datetime.timedelta(weeks=3)
-        form = RenewBookModelForm(initial={'due_back': proposed_due_back})
+        proposed_renewal_date = datetime.date.today() + datetime.timedelta(weeks=3)
+        form = RenewBookForm(initial={'renewal_date': proposed_renewal_date})
 
     context = {
         'form': form,
@@ -77,22 +77,22 @@ def renew_book_librarian(request, pk):
 
     return render(request, 'catalog/book_renew_librarian.html', context)
 
-class BookListView(LoginRequiredMixin, generic.ListView):
+class BookListView(generic.ListView):
     model = Book
     context_object_name = 'book_list' # Your own name for the list as a template variable
     # queryset = Book.objects.filter(title__icontains='war')[:5] # Get 5 books containing the title 'war'
     # template_name = 'books/my_arbitrary_template_name_list.html' # Specify your own template name/location
     paginate_by = 5
 
-class BookDetailView(LoginRequiredMixin, generic.DetailView):
+class BookDetailView(generic.DetailView):
     model = Book
 
-class AuthorListView(LoginRequiredMixin, generic.ListView):
+class AuthorListView(generic.ListView):
     model = Author
     context_object_name = 'author_list'
     paginate_by = 5
 
-class AuthorDetailView(LoginRequiredMixin, generic.DetailView):
+class AuthorDetailView(generic.DetailView):
     model = Author
 
 class LoanedBooksByUserListView(LoginRequiredMixin, generic.ListView):

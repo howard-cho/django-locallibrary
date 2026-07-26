@@ -5,6 +5,9 @@ from django.db import models
 from django.urls import reverse  # To generate URLS by reversing URL patterns
 from django.db.models import UniqueConstraint
 from django.db.models.functions import Lower
+from datetime import date
+import uuid  # Required for unique book instances
+from django.conf import settings  # Required to assign User as a borrower
 
 class Genre(models.Model):
     """Model representing a book genre (e.g. Science Fiction, Non Fiction)."""
@@ -90,13 +93,6 @@ class Book(models.Model):
         """String for representing the Model object."""
         return self.title
 
-
-import uuid  # Required for unique book instances
-from datetime import date
-
-from django.conf import settings  # Required to assign User as a borrower
-
-
 class BookInstance(models.Model):
     """Model representing a specific copy of a book (i.e. that can be borrowed from the library)."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4,
@@ -137,7 +133,6 @@ class BookInstance(models.Model):
     def __str__(self):
         """String for representing the Model object."""
         return f'{self.id} ({self.book.title})'
-
 
 class Author(models.Model):
     """Model representing an author."""

@@ -1,12 +1,17 @@
-from django.shortcuts import render
+import datetime
+
+from django.contrib.auth.decorators import login_required, permission_required
+from django.shortcuts import render, get_object_or_404
+from django.http import HttpResponseRedirect
+from django.urls import reverse
 from django.views import generic
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-# from django.contrib.auth.decorators import login_required
 
 # Create your views here.
 from .models import Book, BookInstance, Author, Genre
+from catalog.forms import RenewBookForm, RenewBookModelForm
 
-# @login_required
+
 def index(request):
     """View function for the home page of the site."""
 
@@ -39,6 +44,37 @@ def index(request):
 
     # Render the HTML template index.html with the data in the context variable
     return render(request, 'index.html', context=context)
+
+@login_required
+@permission_required('catalog.can_renew', raise_exception=True)
+def renew_book_librarian(request, pk):
+    book_instance = get_object_or_404(BookInstance, pk=pk)
+
+    # If this is a POST request then process the Form data
+    if request.method == 'POST':
+        # Create a form instance and populate it with data from the request (binding):
+        form = RenewBookModelForm(request.POST)
+
+        # Check if hte form is valid:
+        if form.is_valid():
+            # Process the data in form.cleaned_data as required (here we just write it oteh model due_back field)
+            book_instance.due_back = form.cleaned_data['due_back']
+            book_instance.save()
+
+            # Redirect to a new URL:
+            return HttpResponseRedirect(reverse('all-borrowed'))
+
+    # If this is a GET (or any other method) create the default form.
+    else:
+        proposed_due_back = datetime.date.today() + datetime.timedelta(weeks=3)
+        form = RenewBookModelForm(initial={'due_back': proposed_due_back})
+
+    context = {
+        'form': form,
+        'book_instance': book_instance,
+    }
+
+    return render(request, 'catalog/book_renew_librarian.html', context)
 
 class BookListView(LoginRequiredMixin, generic.ListView):
     model = Book

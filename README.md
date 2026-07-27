@@ -4,3 +4,8 @@ This web application is following the [MDN tutorial home page](https://developer
 
 ## Prerequisites
 Django==5.1.15 is not supported with Python 3.14.5, therefore I downgraded to Python 3.12.9.
+
+## Building the Docker image
+```
+docker build -t django-locallibrary .
+```

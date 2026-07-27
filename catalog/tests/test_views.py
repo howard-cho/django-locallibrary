@@ -9,6 +9,7 @@ from django.utils import timezone
 # Get user model from settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission # Required to grant the permission needed to set a book as returned.
+from django.contrib.contenttypes.models import ContentType
 
 from catalog.models import Author, BookInstance, Book, Genre, Language
 
@@ -291,3 +292,72 @@ class RenewBookInstancesViewTest(TestUserCreationMixin, TestCase):
         response = self.client.post(reverse('renew-book-librarian', kwargs={'pk': self.test_bookinstance1.pk}), {'renewal_date': invalid_date_in_future})
         self.assertEqual(response.status_code, 200)
         self.assertFormError(response.context['form'], 'renewal_date', 'Invalid date - renewal more than 4 weeks ahead')
+
+class AuthorCreateViewTest(TestUserCreationMixin, TestCase):
+    """Test case for the AuthorCreate view."""
+    
+    def setUp(self):
+        # Create test users
+        self.create_test_users()
+
+        content_typeBook = ContentType.objects.get_for_model(Book)
+        permAddBook = Permission.objects.get(
+            codename="add_book",
+            content_type=content_typeBook,
+        )
+
+        content_typeAuthor = ContentType.objects.get_for_model(Author)
+        permAddAuthor = Permission.objects.get(
+            codename="add_author",
+            content_type=content_typeAuthor,
+        )
+
+        self.test_user2.user_permissions.add(permAddBook, permAddAuthor)
+        self.test_user2.save()
+
+        # Create a book
+        test_author = Author.objects.create(first_name='Dominique', last_name='Rousseau')
+
+    def test_redirect_if_not_logged_in(self):
+        response = self.client.get(reverse('author-create'))
+        self.assertRedirects(response, '/accounts/login/?next=/catalog/author/create/')
+
+    def test_forbidden_if_logged_in_but_not_correct_permission(self):
+        login = self.client.login(
+            username='testuser1', password=self.test_user1_password)
+        response = self.client.get(reverse('author-create'))
+        self.assertEqual(response.status_code, 403)
+
+    def test_logged_in_with_permission(self):
+        login = self.client.login(
+            username='testuser2', password=self.test_user2_password)
+        response = self.client.get(reverse('author-create'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_uses_correct_template(self):
+        login = self.client.login(
+            username='testuser2', password=self.test_user2_password)
+        response = self.client.get(reverse('author-create'))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'catalog/author_form.html')
+
+    def test_form_date_of_death_initially_set_to_expected_date(self):
+        login = self.client.login(
+            username='testuser2', password=self.test_user2_password)
+        response = self.client.get(reverse('author-create'))
+        self.assertEqual(response.status_code, 200)
+
+        expected_initial_date = datetime.date(2023, 11, 11)
+        response_date = response.context['form'].initial['date_of_death']
+        response_date = datetime.datetime.strptime(
+            response_date, "%d/%m/%Y").date()
+        self.assertEqual(response_date, expected_initial_date)
+
+    def test_redirects_to_detail_view_on_success(self):
+        login = self.client.login(
+            username='testuser2', password=self.test_user2_password)
+        response = self.client.post(reverse('author-create'),
+                                    {'first_name': 'Christian Name', 'last_name': 'Surname'})
+        # Manually check redirect because we don't know what author was created
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith('/catalog/author/'))

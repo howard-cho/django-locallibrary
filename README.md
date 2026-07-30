@@ -9,3 +9,6 @@ Django==5.1.15 is not supported with Python 3.14.5, therefore I downgraded to Py
 ```
 docker build -t django-locallibrary .
 ```
+
+## GitHub App
+Testing new GitHub App, it should leave a comment in a pull request.

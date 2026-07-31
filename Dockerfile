@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1
 
+# Create builder image
 FROM dhi.io/python:3.12-dev AS builder
 
 WORKDIR /app
@@ -15,18 +16,20 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Copy source code into the container.
 COPY . .
 
-RUN python3 manage.py migrate && python3 manage.py collectstatic --no-input
+RUN python3 manage.py collectstatic --no-input
 
-# FROM dhi.io/python:3.12 AS runtime
-# WORKDIR /app
-# COPY --from=builder /venv /venv
-# COPY --from=builder /app /app
-# ENV PATH="/venv/bin:$PATH"
-# RUN useradd -m appuser
-# USER appuser
+# Create runtime image
+FROM dhi.io/python:3.12 AS runtime
+USER nonroot:nonroot
+COPY --from=builder --chown=nonroot:nonroot /venv /venv
+COPY --from=builder --chown=nonroot:nonroot /app /app
+WORKDIR /app
+
+ENV PATH="/venv/bin:$PATH"
 
 # Expose the port that the application listens on.
 EXPOSE 8000
 
 # Run the application
-CMD ["gunicorn", "locallibrary.wsgi:application", "--bind", "0.0.0.0:8000"]
+# --no-control-socket since we are not using gunicornc admin tool
+CMD ["gunicorn", "locallibrary.wsgi:application", "--bind", "0.0.0.0:8000", "--no-control-socket"]

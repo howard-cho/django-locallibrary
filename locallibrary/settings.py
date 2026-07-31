@@ -13,7 +13,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 from pathlib import Path
 from dotenv import load_dotenv
 import os
-import dj_database_url
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,12 +23,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # Support env variables from .env file if defined
-env_path = os.path.join(BASE_DIR, ".env")
+env_path = os.path.join(BASE_DIR, '.env')
 if os.path.exists(env_path):
     load_dotenv(env_path)
 
+# Get secret value and set db password
+password_file = os.environ.get('POSTGRES_PASSWORD_FILE')
+if password_file:
+    db_password = Path(password_file).read_text(encoding='utf8').strip()
+else:
+    db_password = ''
+
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-_h3apffe7ln*a@ee%1dbk%dphxq$z6^7c$%ldkagls-2uj7&g)')
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 
+                            'django-insecure-_h3apffe7ln*a@ee%1dbk%dphxq$z6^7c$%ldkagls-2uj7&g)')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', '') != 'False'
@@ -83,19 +91,35 @@ WSGI_APPLICATION = 'locallibrary.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+if os.environ.get('POSTGRES_SERVER'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('POSTGRES_DB'),
+            'USER': os.environ.get('POSTGRES_USER'),
+            'HOST': os.environ.get('POSTGRES_SERVER'),
+            'PORT': os.environ.get('POSTGRES_PORT'),
+            'CONN_MAX_AGE': 500,
+            'CONN_HEALTH_CHECKS': True,
+            'OPTIONS': {
+                'password': db_password,
+            },
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+            'CONN_MAX_AGE': 500,
+            'CONN_HEALTH_CHECKS': True,
+        }
+    }
 
-# If DATABASE_URL is defined in .env, use it. If not, use default sqlite.
-if 'DATABASE_URL' in os.environ:
-    DATABASES['default'] = dj_database_url.config(
-        conn_max_age=500,
-        conn_health_checks=True,
-    )
+# DATABASES['default'] = dj_database_url.config(
+#     conn_max_age=500,
+#     conn_health_checks=True,
+# )
 
 
 # Password validation
@@ -148,14 +172,14 @@ LOGIN_REDIRECT_URL = '/'
 
 # DO NOT USE IN PRODUCTION
 # This logs any emails sent to the console so password reset link can be copied
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Static file serving.
 # https://whitenoise.readthedocs.io/en/stable/django.html#add-compression-and-caching-support
 STORAGES = {
     # ...
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
     },
 }
 

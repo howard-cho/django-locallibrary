@@ -20,11 +20,11 @@ RUN python3 manage.py collectstatic --no-input
 
 # Create runtime image
 FROM dhi.io/python:3.12 AS runtime
-USER 1001:1001
-ENV HOME=/app
+USER nonroot:nonroot
+COPY --from=builder --chown=nonroot:nonroot /venv /venv
+COPY --from=builder --chown=nonroot:nonroot /app /app
 WORKDIR /app
-COPY --from=builder --chown=1001:1001 /venv /venv
-COPY --from=builder --chown=1001:1001 /app /app
+
 ENV PATH="/venv/bin:$PATH"
 
 # Expose the port that the application listens on.

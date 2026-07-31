@@ -1,0 +1,32 @@
+name: ci
+run-name: ${{ github.event.pull_request.number }}
+on: [pull_request]
+jobs:
+  # Build Docker image and push
+  ci:
+    name: Build Docker image and Push to Docker Hub
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v6
+      - name: Login to Docker Hub
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_PASS }}
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
+        with:
+          images: chohoward/django-locallibrary
+      - name: Build and push
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
+        with:
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+  # Run tests
+
+  # Linting checks
+

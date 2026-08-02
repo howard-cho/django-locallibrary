@@ -7,20 +7,16 @@ services:
     ports:
       - 8000:8000
     environment:
-      - POSTGRES_SERVER=${POSTGRES_SERVER}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
-      - DJANGO_DEBUG=${DJANGO_DEBUG}
-      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+    env_file:
+      - .env
+    secrets:
+      - db-password
     depends_on:
       db:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
-    secrets:
-      - db-password
     develop:
       watch:
         - action: rebuild
@@ -31,13 +27,9 @@ services:
       context: .
       target: runtime
     environment:
-      - POSTGRES_SERVER=${POSTGRES_SERVER}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
-      - DJANGO_DEBUG=${DJANGO_DEBUG}
-      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+    env_file:
+      - .env
     secrets:
       - db-password
     command: python3 manage.py migrate
@@ -48,14 +40,14 @@ services:
     image: dhi.io/postgres:18
     restart: always
     user: postgres
-    secrets:
-      - db-password
     volumes:
       - db-data:/var/lib/postgresql
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
+    env_file:
+      - .env
+    secrets:
+      - db-password
     expose:
       - 5432
     healthcheck:

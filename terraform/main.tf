@@ -28,30 +28,24 @@ resource "aws_route_table_association" "locallibrary_rta" {
   route_table_id = aws_route_table.locallibrary_rt.id
 }
 
-resource "aws_route53_zone" "howardcho" {
-  name = "howardcho.com"
-}
+# Security group to allow connection from source IP
+resource "aws_security_group" "locallibrary_sg" {
+  name   = "locallibrary-sg"
+  vpc_id = aws_vpc.locallibrary_vpc.id
 
-# resource "aws_route53_record" "locallibrary" {
-#     zone_id = aws_route53_zone.howardcho.zone_id
-#     name = "library.howardcho.com"
-#     type "A"
-#     ttl = 300
-#     records = []
-# }
-
-resource "aws_route53_record" "caa" {
-  zone_id = aws_route53_zone.howardcho.zone_id
-  name    = "howardcho.com"
-  type    = "CAA"
-  ttl     = 300
-  records = ["0 issue \"letsencrypt.org\""]
+  ingress {
+    description = "Allow SSH from source IP"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.source_ip]
+  }
 }
 
 # EC2 instance for hosting the app
 resource "aws_key_pair" "locallibrary_key" {
-    key_name = "locallibrary-key"
-    public_key = file(var.public_key_path)
+  key_name   = "locallibrary-key"
+  public_key = file(var.public_key_path)
 }
 
 data "aws_ami" "ubuntu" {
@@ -65,23 +59,24 @@ data "aws_ami" "ubuntu" {
 }
 
 resource "aws_instance" "locallibrary_instance" {
-    ami = data.aws_ami.ubuntu.id
-    instance_type = "t3.small"
-    subnet_id = aws_subnet.locallibrary_subnet.id
-    key_name = aws_key_pair.locallibrary_key.key_name
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = "t3.small"
+  subnet_id              = aws_subnet.locallibrary_subnet.id
+  key_name               = aws_key_pair.locallibrary_key.key_name
+  vpc_security_group_ids = [aws_security_group.locallibrary_sg.id]
 
-    root_block_device {
-        volume_size = 20
-        volume_type = "gp3"
-    }
+  root_block_device {
+    volume_size = 20
+    volume_type = "gp3"
+  }
 
-    tags = {
-        Name = "locallibrary-instance"
-    }
+  tags = {
+    Name = "locallibrary-instance"
+  }
 }
 
 resource "time_sleep" "wait_for_ssh" {
-  depends_on = [aws_instance.locallibrary_instance]
+  depends_on      = [aws_instance.locallibrary_instance]
   create_duration = "60s"
 }
 
@@ -94,4 +89,8 @@ resource "null_resource" "add_instance_to_known_hosts" {
       ssh-keyscan -H ${aws_instance.locallibrary_instance.public_ip} >> ~/.ssh/known_hosts
     EOF
   }
+}
+
+output "instance_public_ip" {
+  value = aws_instance.locallibrary_instance.public_ip
 }

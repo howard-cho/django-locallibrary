@@ -47,3 +47,51 @@ resource "aws_route53_record" "caa" {
   ttl     = 300
   records = ["0 issue \"letsencrypt.org\""]
 }
+
+# EC2 instance for hosting the app
+resource "aws_key_pair" "locallibrary_key" {
+    key_name = "locallibrary-key"
+    public_key = file(var.public_key_path)
+}
+
+data "aws_ami" "ubuntu" {
+  most_recent = true
+  owners      = ["099720109477"] # Canonical
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"]
+  }
+}
+
+resource "aws_instance" "locallibrary_instance" {
+    ami = data.aws_ami.ubuntu.id
+    instance_type = "t3.small"
+    subnet_id = aws_subnet.locallibrary_subnet.id
+    key_name = aws_key_pair.locallibrary_key.key_name
+
+    root_block_device {
+        volume_size = 20
+        volume_type = "gp3"
+    }
+
+    tags = {
+        Name = "locallibrary-instance"
+    }
+}
+
+resource "time_sleep" "wait_for_ssh" {
+  depends_on = [aws_instance.locallibrary_instance]
+  create_duration = "60s"
+}
+
+# Add the EC2 instance to known_hosts
+resource "null_resource" "add_instance_to_known_hosts" {
+  depends_on = [time_sleep.wait_for_ssh]
+  provisioner "local-exec" {
+    when    = create
+    command = <<EOF
+      ssh-keyscan -H ${aws_instance.locallibrary_instance.public_ip} >> ~/.ssh/known_hosts
+    EOF
+  }
+}

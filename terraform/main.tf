@@ -107,6 +107,23 @@ resource "aws_iam_role_policy" "library_route53_dns01" {
   })
 }
 
+# Route53 records for the domain
+resource "aws_route53_record" "library" {
+  zone_id = var.howardcho_zone_id
+  name    = "library.howardcho.com"
+  type    = "A"
+  ttl     = 300
+  records = [aws_instance.locallibrary_instance.public_ip]
+}
+
+resource "aws_route53_record" "caa" {
+  zone_id = var.howardcho_zone_id
+  name    = "howardcho.com"
+  type    = "CAA"
+  ttl     = 300
+  records = ["0 issue \"letsencrypt.org\""]
+}
+
 # EC2 instance for hosting the app
 resource "aws_key_pair" "locallibrary_key" {
   key_name   = "locallibrary-key"
@@ -141,6 +158,7 @@ resource "aws_instance" "locallibrary_instance" {
   }
 }
 
+# Wait for the EC2 instance to be ready before proceeding
 resource "time_sleep" "wait_for_ssh" {
   depends_on      = [aws_instance.locallibrary_instance]
   create_duration = "60s"

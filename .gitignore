@@ -11,3 +11,4 @@ db/password.txt
 *.tfvars
 *.tfstate*
 .terraform/
+inventory.ini

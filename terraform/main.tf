@@ -40,6 +40,88 @@ resource "aws_security_group" "locallibrary_sg" {
     protocol    = "tcp"
     cidr_blocks = [var.source_ip]
   }
+
+  ingress {
+    description = "Allow HTTPS from source IP"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [var.source_ip]
+  }
+
+  # Allow all outbound traffic, needed for apt
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# IAM policies for EC2 instance to allow Route53
+resource "aws_iam_role" "library_role" {
+  name = "library-ec2-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_instance_profile" "library_profile" {
+  name = "library-instance-profile"
+  role = aws_iam_role.library_role.name
+}
+
+resource "aws_iam_role_policy" "library_route53_dns01" {
+  name = "library-route53-dns01-challenge"
+  role = aws_iam_role.library_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "route53:GetChange"
+        Resource = "arn:aws:route53:::change/*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = "route53:ChangeResourceRecordSets"
+        Resource = "arn:aws:route53:::hostedzone/${var.howardcho_zone_id}"
+      },
+      {
+        Effect   = "Allow"
+        Action   = "route53:ListHostedZones"
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Route53 records for the domain
+resource "aws_route53_record" "library" {
+  zone_id = var.howardcho_zone_id
+  name    = "library.howardcho.com"
+  type    = "A"
+  ttl     = 300
+  records = [aws_instance.locallibrary_instance.public_ip]
+}
+
+resource "aws_route53_record" "caa" {
+  zone_id = var.howardcho_zone_id
+  name    = "howardcho.com"
+  type    = "CAA"
+  ttl     = 300
+  records = ["0 issue \"letsencrypt.org\""]
 }
 
 # EC2 instance for hosting the app
@@ -60,10 +142,11 @@ data "aws_ami" "ubuntu" {
 
 resource "aws_instance" "locallibrary_instance" {
   ami                    = data.aws_ami.ubuntu.id
-  instance_type          = "t3.small"
+  instance_type          = var.instance_type
   subnet_id              = aws_subnet.locallibrary_subnet.id
   key_name               = aws_key_pair.locallibrary_key.key_name
   vpc_security_group_ids = [aws_security_group.locallibrary_sg.id]
+  iam_instance_profile   = aws_iam_instance_profile.library_profile.name
 
   root_block_device {
     volume_size = 20
@@ -75,6 +158,7 @@ resource "aws_instance" "locallibrary_instance" {
   }
 }
 
+# Wait for the EC2 instance to be ready before proceeding
 resource "time_sleep" "wait_for_ssh" {
   depends_on      = [aws_instance.locallibrary_instance]
   create_duration = "60s"
@@ -93,4 +177,24 @@ resource "null_resource" "add_instance_to_known_hosts" {
 
 output "instance_public_ip" {
   value = aws_instance.locallibrary_instance.public_ip
+}
+
+resource "null_resource" "write_ansible_inventory" {
+  provisioner "local-exec" {
+    when    = create
+    command = <<EOF
+      echo "[nginx]" > ../ansible/inventory.ini
+      echo "${aws_instance.locallibrary_instance.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${var.private_key_path}" >> ../ansible/inventory.ini
+    EOF
+  }
+}
+
+resource "null_resource" "install_nginx" {
+  depends_on = [null_resource.add_instance_to_known_hosts, null_resource.write_ansible_inventory]
+  provisioner "local-exec" {
+    when    = create
+    command = <<EOF
+      ansible-playbook -i ../ansible/inventory.ini ../ansible/playbook.yaml
+    EOF
+  }
 }

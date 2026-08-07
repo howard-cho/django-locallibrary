@@ -41,7 +41,7 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY',
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', '') != 'False'
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'locallibrary.howardcho.com']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'library.howardcho.com']
 
 
 # Application definition
@@ -185,7 +185,7 @@ STORAGES = {
 
 ## For example, for a site URL is at 'web-production-3640.up.railway.app'
 ## (replace the string below with your own site URL):
-CSRF_TRUSTED_ORIGINS = ['https://locallibrary.howardcho.com']
+CSRF_TRUSTED_ORIGINS = ['https://library.howardcho.com']
 
 # During development/for this tutorial you can instead set just the base URL
 # CSRF_TRUSTED_ORIGINS = ['https://*.howardcho.com']
